@@ -8,6 +8,8 @@ public class ChatClient {
     private static Socket socket;
     private static BufferedReader socketIn;
     private static PrintWriter out;
+    private static boolean named;
+    private static String name;
     
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
@@ -27,13 +29,18 @@ public class ChatClient {
         Thread t = new Thread(listener);
         t.start();
 
-        System.out.print("Chat sessions has started - enter a user name: ");
-        String name = userInput.nextLine().trim();
-        out.println(name); //out.flush();
+        // System.out.print("Chat sessions has started - enter a user name: ");
+        // String name = userInput.nextLine().trim();
+        // out.println(name); //out.flush();
 
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            String msg = String.format("CHAT %s", line); 
+            String header = "CHAT";
+            if (!named) {
+                header = "NAME";
+                name = line;
+            }
+            String msg = String.format("%s %s", header, line); 
             out.println(msg);
             line = userInput.nextLine().trim();
         }
@@ -54,10 +61,26 @@ public class ChatClient {
 
                 while( (incoming = socketIn.readLine()) != null) {
                     //handle different headers
+                    String[] message = incoming.split(" ");
+                    String header = message[0];
+                    //SUBMITNAME
+                    if (header.equals("SUBMITNAME")) {
+                        System.out.print("Enter your username: ");
+                    }
                     //WELCOME
+                    else if (header.equals("WELCOME")) {
+                        String newName = message[1];
+                        if (!named && newName.equals(name)) {
+                            named = true;
+                        }
+                        System.out.printf("%s has joined", newName);
+                    }
                     //CHAT
+                    else if (header.equals("CHAT")) {
+                        String username = message[1];
+                        
+                    }
                     //EXIT
-                    System.out.println(incoming);
                 }
             } catch (Exception ex) {
                 System.out.println("Exception caught in listener - " + ex);

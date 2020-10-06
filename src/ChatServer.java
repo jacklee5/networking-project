@@ -36,11 +36,6 @@ public class ChatServer {
                     String name = socket.getInetAddress().getHostName();
 
                     ClientConnectionData client = new ClientConnectionData(socket, in, out, name);
-                    synchronized (clientList) {
-                        clientList.add(client);
-                    }
-                    
-                    System.out.println("added client " + name);
 
                     //handle client business in another thread
                     pool.execute(new ClientHandler(client));
@@ -84,24 +79,42 @@ public class ChatServer {
         public void run() {
             try {
                 BufferedReader in = client.getInput();
+                PrintWriter out = client.getOut();
                 //get userName, first message from user
-                String userName = in.readLine().trim();
-                client.setUserName(userName);
-                //notify all that client has joined
-                broadcast(String.format("WELCOME %s", client.getUserName()));
+                // String userName = in.readLine().trim();
+                // client.setUserName(userName);
+                // //notify all that client has joined
+                // broadcast(String.format("WELCOME %s", client.getUserName()));
 
-                
+                // request a username
+                out.println("SUBMITNAME");
+
                 String incoming = "";
-
                 while( (incoming = in.readLine()) != null) {
-                    if (incoming.startsWith("CHAT")) {
-                        String chat = incoming.substring(4).trim();
-                        if (chat.length() > 0) {
-                            String msg = String.format("CHAT %s %s", client.getUserName(), chat);
-                            broadcast(msg);    
-                        }
-                    } else if (incoming.startsWith("QUIT")){
+                    System.out.println(incoming);
+                    String header = incoming.split(" ")[0];
+                    if (header.equals("QUIT")) {
                         break;
+                    }else if (client.getUserName() == null) {
+                        if (header.equals("NAME")) {
+                            String name = incoming.substring(4).trim();
+                            client.setUserName(name);
+                            synchronized (clientList) {
+                                clientList.add(client);
+                            }
+                            System.out.println("added client " + name);
+                            broadcast("WELCOME " + name);
+                        } else {
+                            out.println("SUBMITNAME");
+                        }
+                    } else {
+                        if (header.equals("CHAT")) {
+                            String chat = incoming.substring(4).trim();
+                            if (chat.length() > 0) {
+                                String msg = String.format("CHAT %s %s", client.getUserName(), chat);
+                                broadcast(msg);    
+                            }
+                        }
                     }
                 }
             } catch (Exception ex) {
