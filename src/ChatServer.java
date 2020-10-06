@@ -69,6 +69,7 @@ public class ChatServer {
                 System.out.println("Broadcasting -- " + msg);
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
+                        //TODO: Brodcast messages
                         c.getOut().println(msg);
                         // c.getOut().flush();
                     }
@@ -85,15 +86,18 @@ public class ChatServer {
             try {
                 BufferedReader in = client.getInput();
                 //get userName, first message from user
+                //TODO: Recieve username
                 String userName = in.readLine().trim();
                 client.setUserName(userName);
                 //notify all that client has joined
+                //TODO: Send message that person joined
                 broadcast(String.format("WELCOME %s", client.getUserName()));
 
                 
                 String incoming = "";
 
                 while( (incoming = in.readLine()) != null) {
+                    //TODO: Check message type and do things
                     if (incoming.startsWith("CHAT")) {
                         String chat = incoming.substring(4).trim();
                         if (chat.length() > 0) {
@@ -118,6 +122,7 @@ public class ChatServer {
                     clientList.remove(client); 
                 }
                 System.out.println(client.getName() + " has left.");
+                //TODO: Send message that person left
                 broadcast(String.format("EXIT %s", client.getUserName()));
                 try {
                     client.getSocket().close();

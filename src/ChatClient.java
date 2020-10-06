@@ -3,6 +3,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class ChatClient {
     private static Socket socket;
@@ -20,7 +22,7 @@ public class ChatClient {
 
         socket = new Socket(serverip, port);
         socketIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out = new PrintWriter(socket.getOutputStream(), true);
+        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 
         // start a thread to listen for server messages
         ServerListener listener = new ServerListener();
@@ -29,15 +31,19 @@ public class ChatClient {
 
         System.out.print("Chat sessions has started - enter a user name: ");
         String name = userInput.nextLine().trim();
-        out.println(name); //out.flush();
+        Message name_msg = new Message(Constants.HEADER_CLIENT_SEND_NAME, name);
+        out.writeObject(name_msg);
+        // out.println(name); //out.flush();
 
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            String msg = String.format("CHAT %s", line); 
-            out.println(msg);
+            //TODO: Send chat message
+            Message chat_msg = new Message(Constants.HEADER_CLIENT_SEND_MESSAGE, line);
+            out.writeObject(chat_msg);
             line = userInput.nextLine().trim();
         }
-        out.println("QUIT");
+        Message quit_msg = new Message(Constants.HEADER_CLIENT_SEND_LOGOUT, null);
+        out.writeObject(quit_msg);
         out.close();
         userInput.close();
         socketIn.close();
@@ -52,6 +58,7 @@ public class ChatClient {
             try {
                 String incoming = "";
 
+                //TODO: Recieve server messages
                 while( (incoming = socketIn.readLine()) != null) {
                     //handle different headers
                     //WELCOME
