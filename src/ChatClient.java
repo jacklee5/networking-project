@@ -73,12 +73,13 @@ public class ChatClient {
                         if (!named && newName.equals(name)) {
                             named = true;
                         }
-                        System.out.printf("%s has joined", newName);
+                        System.out.printf("%s has joined\n", newName);
                     }
                     //CHAT
                     else if (header.equals("CHAT")) {
                         String username = message[1];
-                        
+                        String msg = incoming.substring(5 + username.length()).trim();
+                        System.out.printf("%s: %s\n", username, msg);
                     }
                     //EXIT
                 }
