@@ -5,11 +5,13 @@ import java.net.Socket;
 import java.util.Scanner;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 
 public class ChatClient {
     private static Socket socket;
     private static BufferedReader socketIn;
-    private static PrintWriter out;
+    private static ObjectOutputStream out;
+    private static ObjectInputStream in;
     
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
@@ -22,7 +24,8 @@ public class ChatClient {
 
         socket = new Socket(serverip, port);
         socketIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+        out = new ObjectOutputStream(socket.getOutputStream());
+        in = new ObjectInputStream(socket.getInputStream());
 
         // start a thread to listen for server messages
         ServerListener listener = new ServerListener();
@@ -56,15 +59,18 @@ public class ChatClient {
         @Override
         public void run() {
             try {
-                String incoming = "";
+                Message incoming;
 
                 //TODO: Recieve server messages
-                while( (incoming = socketIn.readLine()) != null) {
+                while( (incoming = (Message)in.readObject()) != null) {
                     //handle different headers
                     //WELCOME
                     //CHAT
                     //EXIT
-                    System.out.println(incoming);
+                    ArrayList<String> payload = incoming.payload;
+                    for (int i = 0; i < payload.size(); i++) {
+                        System.out.println(payload.get(i));
+                    }
                 }
             } catch (Exception ex) {
                 System.out.println("Exception caught in listener - " + ex);

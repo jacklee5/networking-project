@@ -5,4 +5,5 @@ public final class Constants {
     public static final int HEADER_CLIENT_SEND_PM = 3;
     public static final int HEADER_CLIENT_SEND_LOGOUT = 4;
     public static final int HEADER_SERVER_SEND_USERS = 5;
+    public static final int HEADER_SERVER_SEND_MESSAGE = 6;
 }

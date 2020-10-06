@@ -10,6 +10,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class ChatServer {
     public static final int PORT = 54321;
@@ -31,8 +33,8 @@ public class ChatServer {
                         socket.getInetAddress(), socket.getPort(), socket.getLocalPort());
                     
                     // This code should really be done in the separate thread
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                     String name = socket.getInetAddress().getHostName();
 
                     ClientConnectionData client = new ClientConnectionData(socket, in, out, name);
@@ -70,7 +72,7 @@ public class ChatServer {
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
                         //TODO: Brodcast messages
-                        c.getOut().println(msg);
+                        c.getOut().writeObject(new Message(Constants.HEADER_SERVER_SEND_MESSAGE, msg));;
                         // c.getOut().flush();
                     }
                 }
@@ -84,11 +86,11 @@ public class ChatServer {
         @Override
         public void run() {
             try {
-                BufferedReader in = client.getInput();
+                ObjectInputStream in = client.getInput();
                 //get userName, first message from user
                 //TODO: Recieve username
-                String userName = in.readLine().trim();
-                client.setUserName(userName);
+                Message userName = (Message)in.readObject();
+                client.setUserName(userName.payload.get(0));
                 //notify all that client has joined
                 //TODO: Send message that person joined
                 broadcast(String.format("WELCOME %s", client.getUserName()));
@@ -98,7 +100,7 @@ public class ChatServer {
 
                 while( (incoming = in.readLine()) != null) {
                     //TODO: Check message type and do things
-                    if (incoming.startsWith("CHAT")) {
+                    if (incoming.startsWith("CHAT") || true) {
                         String chat = incoming.substring(4).trim();
                         if (chat.length() > 0) {
                             String msg = String.format("CHAT %s %s", client.getUserName(), chat);
