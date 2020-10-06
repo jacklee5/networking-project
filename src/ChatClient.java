@@ -8,6 +8,7 @@ public class ChatClient {
     private static Socket socket;
     private static BufferedReader socketIn;
     private static PrintWriter out;
+    private static boolean named = false;
     
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
@@ -27,13 +28,10 @@ public class ChatClient {
         Thread t = new Thread(listener);
         t.start();
 
-        System.out.print("Chat sessions has started - enter a user name: ");
-        String name = userInput.nextLine().trim();
-        out.println(name); //out.flush();
-
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            String msg = String.format("CHAT %s", line); 
+            String header = named ? "CHAT" : "NAME";
+            String msg = String.format("%s %s", header, line); 
             out.println(msg);
             line = userInput.nextLine().trim();
         }
@@ -54,6 +52,10 @@ public class ChatClient {
 
                 while( (incoming = socketIn.readLine()) != null) {
                     //handle different headers
+                    String header = incoming.split(" ")[0];
+                    if (header.equals("SUBMITNAME")) {
+                        System.out.print("Enter your username: ");
+                    }
                     //WELCOME
                     //CHAT
                     //EXIT

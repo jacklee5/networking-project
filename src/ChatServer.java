@@ -36,9 +36,9 @@ public class ChatServer {
                     String name = socket.getInetAddress().getHostName();
 
                     ClientConnectionData client = new ClientConnectionData(socket, in, out, name);
-                    synchronized (clientList) {
-                        clientList.add(client);
-                    }
+                    // synchronized (clientList) {
+                    //     clientList.add(client);
+                    // }
                     
                     System.out.println("added client " + name);
 
@@ -84,24 +84,24 @@ public class ChatServer {
         public void run() {
             try {
                 BufferedReader in = client.getInput();
-                //get userName, first message from user
-                String userName = in.readLine().trim();
-                client.setUserName(userName);
-                //notify all that client has joined
-                broadcast(String.format("WELCOME %s", client.getUserName()));
+                // broadcast(String.format("WELCOME %s", client.getUserName()));
 
                 
                 String incoming = "";
 
                 while( (incoming = in.readLine()) != null) {
-                    if (incoming.startsWith("CHAT")) {
-                        String chat = incoming.substring(4).trim();
-                        if (chat.length() > 0) {
-                            String msg = String.format("CHAT %s %s", client.getUserName(), chat);
-                            broadcast(msg);    
+                    if (client.getUserName() == null) {
+                        
+                    } else {
+                        if (incoming.startsWith("CHAT")) {
+                            String chat = incoming.substring(4).trim();
+                            if (chat.length() > 0) {
+                                String msg = String.format("CHAT %s %s", client.getUserName(), chat);
+                                broadcast(msg);    
+                            }
+                        } else if (incoming.startsWith("QUIT")){
+                            break;
                         }
-                    } else if (incoming.startsWith("QUIT")){
-                        break;
                     }
                 }
             } catch (Exception ex) {
