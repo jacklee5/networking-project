@@ -38,9 +38,9 @@ public class ChatServer {
                     String name = socket.getInetAddress().getHostName();
 
                     ClientConnectionData client = new ClientConnectionData(socket, in, out, name);
-                    synchronized (clientList) {
-                        clientList.add(client);
-                    }
+                    // synchronized (clientList) {
+                    //     clientList.add(client);
+                    // }
                     
                     System.out.println("added client " + name);
 
@@ -106,18 +106,10 @@ public class ChatServer {
                             String msg = String.format("CHAT %s %s", client.getUserName(), chat);
                             broadcast(msg);    
                         }
-                    } else if (incoming.startsWith("QUIT")){
-                        break;
                     }
                 }
-            } catch (Exception ex) {
-                if (ex instanceof SocketException) {
-                    System.out.println("Caught socket ex for " + 
-                        client.getName());
-                } else {
-                    System.out.println(ex);
-                    ex.printStackTrace();
-                }
+            } catch (Exception e) {
+                System.out.println(e);
             } finally {
                 //Remove client from clientList, notify all
                 synchronized (clientList) {

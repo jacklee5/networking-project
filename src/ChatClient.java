@@ -32,17 +32,11 @@ public class ChatClient {
         Thread t = new Thread(listener);
         t.start();
 
-        System.out.print("Chat sessions has started - enter a user name: ");
-        String name = userInput.nextLine().trim();
-        Message name_msg = new Message(Constants.HEADER_CLIENT_SEND_NAME, name);
-        out.writeObject(name_msg);
-        // out.println(name); //out.flush();
-
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            //TODO: Send chat message
-            Message chat_msg = new Message(Constants.HEADER_CLIENT_SEND_MESSAGE, line);
-            out.writeObject(chat_msg);
+            String header = named ? "CHAT" : "NAME";
+            String msg = String.format("%s %s", header, line); 
+            out.println(msg);
             line = userInput.nextLine().trim();
         }
         Message quit_msg = new Message(Constants.HEADER_CLIENT_SEND_LOGOUT, null);
@@ -64,6 +58,10 @@ public class ChatClient {
                 //TODO: Recieve server messages
                 while( (incoming = (Message)in.readObject()) != null) {
                     //handle different headers
+                    String header = incoming.split(" ")[0];
+                    if (header.equals("SUBMITNAME")) {
+                        System.out.print("Enter your username: ");
+                    }
                     //WELCOME
                     //CHAT
                     //EXIT
