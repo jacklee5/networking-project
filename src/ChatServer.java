@@ -69,6 +69,7 @@ public class ChatServer {
                 System.out.println("Broadcasting -- " + msg);
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
+                        //TODO: Brodcast messages
                         c.getOut().println(msg);
                         // c.getOut().flush();
                     }
@@ -99,25 +100,19 @@ public class ChatServer {
                                 String msg = String.format("CHAT %s %s", client.getUserName(), chat);
                                 broadcast(msg);    
                             }
-                        } else if (incoming.startsWith("QUIT")){
                             break;
                         }
                     }
                 }
-            } catch (Exception ex) {
-                if (ex instanceof SocketException) {
-                    System.out.println("Caught socket ex for " + 
-                        client.getName());
-                } else {
-                    System.out.println(ex);
-                    ex.printStackTrace();
-                }
+            } catch (Exception e) {
+                System.out.println(e);
             } finally {
                 //Remove client from clientList, notify all
                 synchronized (clientList) {
                     clientList.remove(client); 
                 }
                 System.out.println(client.getName() + " has left.");
+                //TODO: Send message that person left
                 broadcast(String.format("EXIT %s", client.getUserName()));
                 try {
                     client.getSocket().close();
