@@ -1,4 +1,3 @@
-package day5_bca;
 
 import java.net.Inet4Address;
 import java.net.ServerSocket;
@@ -11,8 +10,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 
 public class ChatServer {
     public static final int PORT = 54321;
@@ -34,14 +31,14 @@ public class ChatServer {
                         socket.getInetAddress(), socket.getPort(), socket.getLocalPort());
                     
                     // This code should really be done in the separate thread
-                    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                     String name = socket.getInetAddress().getHostName();
 
                     ClientConnectionData client = new ClientConnectionData(socket, in, out, name);
-                    // synchronized (clientList) {
-                    //     clientList.add(client);
-                    // }
+                    synchronized (clientList) {
+                        clientList.add(client);
+                    }
                     
                     System.out.println("added client " + name);
 
@@ -72,8 +69,7 @@ public class ChatServer {
                 System.out.println("Broadcasting -- " + msg);
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
-                        //TODO: Brodcast messages
-                        c.getOut().writeObject(new Message(Constants.HEADER_SERVER_SEND_MESSAGE, msg));;
+                        c.getOut().println(msg);
                         // c.getOut().flush();
                     }
                 }
@@ -87,37 +83,41 @@ public class ChatServer {
         @Override
         public void run() {
             try {
-                ObjectInputStream in = client.getInput();
+                BufferedReader in = client.getInput();
                 //get userName, first message from user
-                //TODO: Recieve username
-                Message userName = (Message)in.readObject();
-                client.setUserName(userName.payload.get(0));
+                String userName = in.readLine().trim();
+                client.setUserName(userName);
                 //notify all that client has joined
-                //TODO: Send message that person joined
                 broadcast(String.format("WELCOME %s", client.getUserName()));
 
                 
                 String incoming = "";
 
                 while( (incoming = in.readLine()) != null) {
-                    //TODO: Check message type and do things
-                    if (incoming.startsWith("CHAT") || true) {
+                    if (incoming.startsWith("CHAT")) {
                         String chat = incoming.substring(4).trim();
                         if (chat.length() > 0) {
                             String msg = String.format("CHAT %s %s", client.getUserName(), chat);
                             broadcast(msg);    
                         }
+                    } else if (incoming.startsWith("QUIT")){
+                        break;
                     }
                 }
-            } catch (Exception e) {
-                System.out.println(e);
+            } catch (Exception ex) {
+                if (ex instanceof SocketException) {
+                    System.out.println("Caught socket ex for " + 
+                        client.getName());
+                } else {
+                    System.out.println(ex);
+                    ex.printStackTrace();
+                }
             } finally {
                 //Remove client from clientList, notify all
                 synchronized (clientList) {
                     clientList.remove(client); 
                 }
                 System.out.println(client.getName() + " has left.");
-                //TODO: Send message that person left
                 broadcast(String.format("EXIT %s", client.getUserName()));
                 try {
                     client.getSocket().close();

@@ -1,19 +1,15 @@
-package day5_bca;
-
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 
 public class ClientConnectionData {
     private Socket socket;
-    private ObjectInputStream input;
-    private ObjectOutputStream out;
+    private BufferedReader input;
+    private PrintWriter out;
     private String name;
     private String userName;
 
-    public ClientConnectionData(Socket socket, ObjectInputStream input, ObjectOutputStream out, String name) {
+    public ClientConnectionData(Socket socket, BufferedReader input, PrintWriter out, String name) {
         this.socket = socket;
         this.input = input;
         this.out = out;
@@ -28,19 +24,19 @@ public class ClientConnectionData {
         this.socket = socket;
     }
 
-    public ObjectInputStream getInput() {
+    public BufferedReader getInput() {
         return input;
     }
 
-    public void setInput(ObjectInputStream input) {
+    public void setInput(BufferedReader input) {
         this.input = input;
     }
 
-    public ObjectOutputStream getOut() {
+    public PrintWriter getOut() {
         return out;
     }
 
-    public void setOut(ObjectOutputStream out) {
+    public void setOut(PrintWriter out) {
         this.out = out;
     }
 

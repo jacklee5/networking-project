@@ -1,19 +1,13 @@
-package day5_bca;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
 
 public class ChatClient {
     private static Socket socket;
     private static BufferedReader socketIn;
-    private static ObjectOutputStream out;
-    private static ObjectInputStream in;
+    private static PrintWriter out;
     
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
@@ -26,23 +20,24 @@ public class ChatClient {
 
         socket = new Socket(serverip, port);
         socketIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out = new ObjectOutputStream(socket.getOutputStream());
-        in = new ObjectInputStream(socket.getInputStream());
+        out = new PrintWriter(socket.getOutputStream(), true);
 
         // start a thread to listen for server messages
         ServerListener listener = new ServerListener();
         Thread t = new Thread(listener);
         t.start();
 
+        System.out.print("Chat sessions has started - enter a user name: ");
+        String name = userInput.nextLine().trim();
+        out.println(name); //out.flush();
+
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            String header = named ? "CHAT" : "NAME";
-            String msg = String.format("%s %s", header, line); 
+            String msg = String.format("CHAT %s", line); 
             out.println(msg);
             line = userInput.nextLine().trim();
         }
-        Message quit_msg = new Message(Constants.HEADER_CLIENT_SEND_LOGOUT, null);
-        out.writeObject(quit_msg);
+        out.println("QUIT");
         out.close();
         userInput.close();
         socketIn.close();
@@ -55,22 +50,14 @@ public class ChatClient {
         @Override
         public void run() {
             try {
-                Message incoming;
+                String incoming = "";
 
-                //TODO: Recieve server messages
-                while( (incoming = (Message)in.readObject()) != null) {
+                while( (incoming = socketIn.readLine()) != null) {
                     //handle different headers
-                    String header = incoming.split(" ")[0];
-                    if (header.equals("SUBMITNAME")) {
-                        System.out.print("Enter your username: ");
-                    }
                     //WELCOME
                     //CHAT
                     //EXIT
-                    ArrayList<String> payload = incoming.payload;
-                    for (int i = 0; i < payload.size(); i++) {
-                        System.out.println(payload.get(i));
-                    }
+                    System.out.println(incoming);
                 }
             } catch (Exception ex) {
                 System.out.println("Exception caught in listener - " + ex);
