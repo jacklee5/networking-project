@@ -64,7 +64,8 @@ public class ChatServer {
                 System.out.println("Broadcasting -- " + msg);
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
-                        c.getOut().println(msg);
+                        if (c.getUserName() != client.getUserName() || !msg.startsWith("CHAT"))
+                            c.getOut().println(msg);
                         // c.getOut().flush();
                     }
                 }
@@ -73,6 +74,18 @@ public class ChatServer {
                 ex.printStackTrace();
             }
             
+        }
+
+        public boolean nameIsValid(String name) {
+            if (name.contains(" ") || !name.matches("^[a-zA-Z0-9]*$")) 
+                return false;
+            synchronized (clientList) {
+                for (ClientConnectionData c : clientList) {
+                    if (c.getUserName().equals(name))
+                        return false;
+                }
+            }
+            return true;
         }
 
         @Override
@@ -98,12 +111,17 @@ public class ChatServer {
                     }else if (client.getUserName() == null) {
                         if (header.equals("NAME")) {
                             String name = incoming.substring(4).trim();
-                            client.setUserName(name);
-                            synchronized (clientList) {
-                                clientList.add(client);
+                            // check that name is valid
+                            if (nameIsValid(name)) {
+                                client.setUserName(name);
+                                synchronized (clientList) {
+                                    clientList.add(client);
+                                }
+                                System.out.println("added client " + name);
+                                broadcast("WELCOME " + name);
+                            } else {
+                                out.println("SUBMITNAME");
                             }
-                            System.out.println("added client " + name);
-                            broadcast("WELCOME " + name);
                         } else {
                             out.println("SUBMITNAME");
                         }
