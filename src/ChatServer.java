@@ -10,10 +10,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChatServer {
     public static final int PORT = 54321;
     private static final ArrayList<ClientConnectionData> clientList = new ArrayList<>();
+    private static final ArrayList<Log> logs =  new ArrayList<Log>();
 
     public static void main(String[] args) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(100);
@@ -75,6 +78,27 @@ public class ChatServer {
             
         }
 
+        public void broadcast(String sender, String recipient, String msg) {
+            try {
+                System.out.println("Broadcasting -- " + msg);
+
+                synchronized (clientList) {
+                    for (ClientConnectionData c : clientList){
+                        if (c.getUserName().equals(recipient)) {
+                            System.out.println("HI");
+                            c.getOut().println(msg);
+                            System.out.println("OK");
+                            c.getOut().flush();
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                System.out.println("broadcast caught exception: " + ex);
+                ex.printStackTrace();
+            }
+            
+        }
+
         @Override
         public void run() {
             try {
@@ -111,9 +135,22 @@ public class ChatServer {
                         if (header.equals("CHAT")) {
                             String chat = incoming.substring(4).trim();
                             if (chat.length() > 0) {
+                                synchronized(logs) {
+                                    logs.add(new Log(client.getUserName(), chat, System.currentTimeMillis()));
+                                }
                                 String msg = String.format("CHAT %s %s", client.getUserName(), chat);
                                 broadcast(msg);    
                             }
+                        } else if (header.equals("PCHAT")) {
+                            System.out.println(incoming);
+                            String chat = incoming.substring(12).trim();
+                            String recipient = chat.substring(0, chat.indexOf(" ")).trim();
+                            String msg = chat.substring(chat.indexOf(" ") + 1).trim();
+                            msg = String.format("PCHAT %s %s", client.getUserName(), msg);
+                            broadcast(client.getUserName(), recipient, msg);
+                        } else if (header.equals("NUKE")) {
+                            String nukephrase = incoming.substring(10).trim();
+                            nuke(client.getUserName(), nukephrase);
                         }
                     }
                 }
@@ -139,6 +176,49 @@ public class ChatServer {
             }
         }
         
-    }
+        private void nuke(String user, String nukeprhase) {
+            ArrayList<String> victims = new ArrayList<String>();
+            Pattern pattern = Pattern.compile(nukeprhase, Pattern.CASE_INSENSITIVE);
 
+
+            synchronized(logs) {
+                for (int i = logs.size() - 1; i >= 0; i--) {
+                    System.out.println(i);
+
+                    System.out.println(logs.get(i).getMessage());
+                    System.out.println(System.currentTimeMillis() - logs.get(i).getTime());
+
+
+                    if (System.currentTimeMillis() - logs.get(i).getTime() > 600000) 
+                        break;
+                    
+                    Matcher matcher = pattern.matcher(logs.get(i).getMessage());
+                    if (matcher.find()) {
+                        victims.add(logs.get(i).getUser());
+                        System.out.println("victim " + logs.get(i).getUser());
+                    }
+                }
+            }
+            String msg = String.format("CHAT %s %s", "Bot", "Nuked " + victims.size() + " users for using nuked phrase \"" + nukeprhase + "\"");
+            broadcast(msg);
+
+            synchronized(clientList){
+                for (int i = clientList.size() - 1; i >=0; i--) {
+                    for (int f = 0; f < victims.size(); f++) {
+                        if (clientList.get(i).getUserName().equals(victims.get(f))) {
+                            String ban_msg = String.format("PCHAT %s %s", "Bot", "Kicked for nuked phrase: \"" + nukeprhase + "\"");
+                            broadcast("Bot", victims.get(f), ban_msg);
+                            try {
+                                clientList.get(i).getSocket().close();
+                            } catch (Exception ex) {
+
+                            }
+                            clientList.remove(i);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

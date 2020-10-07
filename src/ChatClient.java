@@ -15,9 +15,11 @@ public class ChatClient {
         Scanner userInput = new Scanner(System.in);
         
         System.out.println("What's the server IP? ");
-        String serverip = userInput.nextLine();
+        // String serverip = userInput.nextLine();
+        String serverip = "127.0.0.1";
         System.out.println("What's the server port? ");
-        int port = userInput.nextInt();
+        // int port = userInput.nextInt();
+        int port = 54321;
         userInput.nextLine();
 
         socket = new Socket(serverip, port);
@@ -35,7 +37,16 @@ public class ChatClient {
 
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            String header = "CHAT";
+            String header;
+
+            if (line.toLowerCase().startsWith("/pchat")) {
+                header = "PCHAT";
+            } else if (line.toLowerCase().startsWith("/nuke")) {
+                header = "NUKE";
+            } else {
+                header = "CHAT";
+            }
+
             if (!named) {
                 header = "NAME";
                 name = line;
@@ -80,6 +91,11 @@ public class ChatClient {
                         String username = message[1];
                         String msg = incoming.substring(5 + username.length()).trim();
                         System.out.printf("%s: %s\n", username, msg);
+                    }
+                    else if (header.equals("PCHAT")) {
+                        String username = message[1];
+                        String msg = incoming.substring(6 + username.length()).trim();
+                        System.out.printf("%s whispers to you: %s\n", username, msg);
                     }
                     //EXIT
                 }
