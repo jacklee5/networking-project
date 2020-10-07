@@ -67,7 +67,24 @@ public class ChatServer {
                 System.out.println("Broadcasting -- " + msg);
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
-                        c.getOut().println(msg);
+                        if (c.getUserName() != client.getUserName() || !msg.startsWith("CHAT"))
+                            c.getOut().println(msg);
+                        // c.getOut().flush();
+                    }
+                }
+            } catch (Exception ex) {
+                System.out.println("broadcast caught exception: " + ex);
+                ex.printStackTrace();
+            }
+            
+        }
+
+        public void broadcast(boolean server, String msg) {
+            try {
+                System.out.println("Broadcasting -- " + msg);
+                synchronized (clientList) {
+                    for (ClientConnectionData c : clientList){
+                            c.getOut().println(msg);
                         // c.getOut().flush();
                     }
                 }
@@ -85,9 +102,7 @@ public class ChatServer {
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
                         if (c.getUserName().equals(recipient)) {
-                            System.out.println("HI");
                             c.getOut().println(msg);
-                            System.out.println("OK");
                             c.getOut().flush();
                         }
                     }
@@ -96,7 +111,18 @@ public class ChatServer {
                 System.out.println("broadcast caught exception: " + ex);
                 ex.printStackTrace();
             }
+        }
             
+        public boolean nameIsValid(String name) {
+            if (name.contains(" ") || !name.matches("^[a-zA-Z0-9]*$")) 
+                return false;
+            synchronized (clientList) {
+                for (ClientConnectionData c : clientList) {
+                    if (c.getUserName().equals(name))
+                        return false;
+                }
+            }
+            return true;
         }
 
         @Override
@@ -122,12 +148,17 @@ public class ChatServer {
                     }else if (client.getUserName() == null) {
                         if (header.equals("NAME")) {
                             String name = incoming.substring(4).trim();
-                            client.setUserName(name);
-                            synchronized (clientList) {
-                                clientList.add(client);
+                            // check that name is valid
+                            if (nameIsValid(name)) {
+                                client.setUserName(name);
+                                synchronized (clientList) {
+                                    clientList.add(client);
+                                }
+                                System.out.println("added client " + name);
+                                broadcast("WELCOME " + name);
+                            } else {
+                                out.println("SUBMITNAME");
                             }
-                            System.out.println("added client " + name);
-                            broadcast("WELCOME " + name);
                         } else {
                             out.println("SUBMITNAME");
                         }
@@ -200,7 +231,7 @@ public class ChatServer {
                 }
             }
             String msg = String.format("CHAT %s %s", "Bot", "Nuked " + victims.size() + " users for using nuked phrase \"" + nukeprhase + "\"");
-            broadcast(msg);
+            broadcast(true, msg);
 
             synchronized(clientList){
                 for (int i = clientList.size() - 1; i >=0; i--) {

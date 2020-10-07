@@ -84,13 +84,13 @@ public class ChatClient {
                         if (!named && newName.equals(name)) {
                             named = true;
                         }
-                        System.out.printf("%s has joined\n", newName);
+                        System.out.println(newName + " has joined");
                     }
                     //CHAT
                     else if (header.equals("CHAT")) {
                         String username = message[1];
                         String msg = incoming.substring(5 + username.length()).trim();
-                        System.out.printf("%s: %s\n", username, msg);
+                        System.out.println(username + ": "  + msg);
                     }
                     else if (header.equals("PCHAT")) {
                         String username = message[1];
@@ -98,6 +98,10 @@ public class ChatClient {
                         System.out.printf("%s whispers to you: %s\n", username, msg);
                     }
                     //EXIT
+                    else if (header.equals("EXIT")) {
+                        String username = message[1];
+                        System.out.println(username + " has left.");
+                    }
                 }
             } catch (Exception ex) {
                 System.out.println("Exception caught in listener - " + ex);
