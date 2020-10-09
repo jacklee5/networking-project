@@ -47,7 +47,7 @@ public class ChatClient {
         while(!line.toLowerCase().startsWith("/quit")) {
             ArrayList<String> arguments = new ArrayList<String>();
             ArrayList<Integer> argument_indexes = new ArrayList<Integer>();
-            int header;
+            int header = -1;
             Message msg;
 
             for (int i = 0; i < line.length(); i++) {
@@ -80,6 +80,10 @@ public class ChatClient {
 
                 header = Message.HEADER_CLIENT_SEND_NUKE;
                 arguments.add(nukephrase);
+            } else if (line.toLowerCase().startsWith("/whoishere")) {
+                System.out.println("These users are online: ");
+                for (int i = 0; i < listener.getOnline().size(); i++)
+                    System.out.println(listener.getOnline().get(i));
             } else {
                 String message = line;
 
@@ -87,8 +91,9 @@ public class ChatClient {
                 arguments.add(message);
             }
 
-            msg = new Message(header, arguments);
-            out.writeObject(msg);
+            //only send to the server if needed
+            if (header != -1)
+                out.writeObject(new Message(header, arguments));
             line = userInput.nextLine().trim();
         }
 

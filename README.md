@@ -9,7 +9,8 @@ When the user types something in chat, it will be sent to all the other users in
 ### Quit command
 The user can quit the room by typing /quit and all other users will be notified with "[name] has left"
 ### Message command
-The user can message a specific user by typing /pchat [username] [message]
+The user can message a specific user by typing /pchat [usernames] [message]
+You can type a list of usernames separated by spaces. Each username should have the @ symbol before it
 ### Nuke command
 The user can nuke a phrase by typing /nuke [nukephrase]
 This kicks all users with messages that match the regex [nukephrase] in the last 10 minutes
@@ -19,7 +20,7 @@ This kicks all users with messages that match the regex [nukephrase] in the last
 ### HEADER_CLIENT_SEND_MESSAGE
 [message]
 ### HEADER_CLIENT_SEND_PM
-[recipient] [message]
+[recipients] [message]
 ### HEADER_CLIENT_SEND_LOGOUT
 no arguments!
 ### HEADER_CLIENT_SEND_NUKE
@@ -36,3 +37,5 @@ no arguments!
 [username] [message]
 ### HEADER_SERVER_SEND_LEAVE
 [username]
+### HEADER_SERVER_SEND_ONLINE;
+[usernames]
