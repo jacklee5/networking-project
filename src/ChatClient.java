@@ -80,9 +80,6 @@ public class ChatClient {
             }
 
             msg = new Message(header, arguments);
-            
-            // for (int i = 0; i < msg.getPayload().size(); i++)
-            //     System.out.println(msg.getPayload().get(i));
 
             out.writeObject(msg);
             line = userInput.nextLine().trim();
@@ -116,7 +113,6 @@ public class ChatClient {
                         String newName = arguments.get(0);
                         if (!named && newName.equals(name)) {
                             named = true;
-                            System.out.println("L_?");
                         }
                         System.out.println(newName + " has joined");
                     }
