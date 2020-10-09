@@ -13,3 +13,26 @@ The user can message a specific user by typing /pchat [username] [message]
 ### Nuke command
 The user can nuke a phrase by typing /nuke [nukephrase]
 This kicks all users with messages that match the regex [nukephrase] in the last 10 minutes
+
+### HEADER_CLIENT_SEND_NAME
+[name]
+### HEADER_CLIENT_SEND_MESSAGE
+[message]
+### HEADER_CLIENT_SEND_PM
+[recipient] [message]
+### HEADER_CLIENT_SEND_LOGOUT
+no arguments!
+### HEADER_CLIENT_SEND_NUKE
+[nukephrase]
+### HEADER_SERVER_REQ_NAME
+no arguments!
+### HEADER_SERVER_SEND_USERS
+[list]
+### HEADER_SERVER_SEND_MESSAGE
+[username] [message]
+### HEADER_SERVER_SEND_WELCOME
+[username]
+### HEADER_SERVER_SEND_PM
+[username] [message]
+### HEADER_SERVER_SEND_LEAVE
+[username]

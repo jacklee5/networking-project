@@ -6,12 +6,11 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class ChatServer {
     public static final int PORT = 54321;
@@ -34,8 +33,8 @@ public class ChatServer {
                         socket.getInetAddress(), socket.getPort(), socket.getLocalPort());
                     
                     // This code should really be done in the separate thread
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                     String name = socket.getInetAddress().getHostName();
 
                     ClientConnectionData client = new ClientConnectionData(socket, in, out, name);
@@ -62,13 +61,14 @@ public class ChatServer {
         /**
 		 * Broadcasts a message to all clients connected to the server.
 		 */
-        public void broadcast(String msg) {
+        public void broadcast(Message msg) {
             try {
                 System.out.println("Broadcasting -- " + msg);
+
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
-                        if (c.getUserName() != client.getUserName() || !msg.startsWith("CHAT"))
-                            c.getOut().println(msg);
+                        if (c.getUserName() != client.getUserName() || !(msg.getHeader() == Message.HEADER_SERVER_SEND_MESSAGE))
+                            c.getOut().writeObject(msg);
                         // c.getOut().flush();
                     }
                 }
@@ -79,15 +79,16 @@ public class ChatServer {
             
         }
 
-        public void broadcast(boolean server, String msg) {
+        public void broadcast(boolean always_send, Message msg) {
             try {
                 System.out.println("Broadcasting -- " + msg);
+
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
-                            c.getOut().println(msg);
-                        // c.getOut().flush();
+                        c.getOut().writeObject(msg);
                     }
                 }
+
             } catch (Exception ex) {
                 System.out.println("broadcast caught exception: " + ex);
                 ex.printStackTrace();
@@ -95,15 +96,14 @@ public class ChatServer {
             
         }
 
-        public void broadcast(String sender, String recipient, String msg) {
+        public void broadcast(String recipient, Message msg) {
             try {
                 System.out.println("Broadcasting -- " + msg);
 
                 synchronized (clientList) {
                     for (ClientConnectionData c : clientList){
                         if (c.getUserName().equals(recipient)) {
-                            c.getOut().println(msg);
-                            c.getOut().flush();
+                            c.getOut().writeObject(msg);
                         }
                     }
                 }
@@ -128,8 +128,8 @@ public class ChatServer {
         @Override
         public void run() {
             try {
-                BufferedReader in = client.getInput();
-                PrintWriter out = client.getOut();
+                ObjectInputStream in = client.getInput();
+                ObjectOutputStream out = client.getOut();
                 //get userName, first message from user
                 // String userName = in.readLine().trim();
                 // client.setUserName(userName);
@@ -137,17 +137,22 @@ public class ChatServer {
                 // broadcast(String.format("WELCOME %s", client.getUserName()));
 
                 // request a username
-                out.println("SUBMITNAME");
+                out.writeObject(new Message(Message.HEADER_SERVER_REQ_NAME, null));
 
-                String incoming = "";
-                while( (incoming = in.readLine()) != null) {
+                Message incoming;
+                while( (incoming = (Message)in.readObject()) != null) {
+                // while (true) {
+                //     incoming = (Message) in.readObject();
+
+                    System.out.println("Incoming Packet -- ");
                     System.out.println(incoming);
-                    String header = incoming.split(" ")[0];
-                    if (header.equals("QUIT")) {
+
+                    int header = incoming.getHeader();
+                    if (header == Message.HEADER_CLIENT_SEND_LOGOUT) {
                         break;
-                    }else if (client.getUserName() == null) {
-                        if (header.equals("NAME")) {
-                            String name = incoming.substring(4).trim();
+                    } else if (client.getUserName() == null) {
+                        if (header == Message.HEADER_CLIENT_SEND_NAME) {
+                            String name = incoming.getPayload().get(0);
                             // check that name is valid
                             if (nameIsValid(name)) {
                                 client.setUserName(name);
@@ -155,32 +160,40 @@ public class ChatServer {
                                     clientList.add(client);
                                 }
                                 System.out.println("added client " + name);
-                                broadcast("WELCOME " + name);
+
+                                ArrayList<String> payload = new ArrayList<String>();
+                                payload.add(name);
+                                broadcast(new Message(Message.HEADER_SERVER_SEND_WELCOME, payload));
                             } else {
-                                out.println("SUBMITNAME");
+                                out.writeObject(new Message(Message.HEADER_SERVER_REQ_NAME, null));
                             }
                         } else {
-                            out.println("SUBMITNAME");
+                            out.writeObject(new Message(Message.HEADER_SERVER_REQ_NAME, null));
                         }
                     } else {
-                        if (header.equals("CHAT")) {
-                            String chat = incoming.substring(4).trim();
+                        if (header == Message.HEADER_CLIENT_SEND_MESSAGE) {
+                            String chat = incoming.getPayload().get(0);
                             if (chat.length() > 0) {
                                 synchronized(logs) {
                                     logs.add(new Log(client.getUserName(), chat, System.currentTimeMillis()));
                                 }
-                                String msg = String.format("CHAT %s %s", client.getUserName(), chat);
-                                broadcast(msg);    
+                                
+                                ArrayList<String> payload = new ArrayList<String>();
+                                payload.add(client.getUserName());
+                                payload.add(chat);
+                                broadcast(new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload));    
                             }
-                        } else if (header.equals("PCHAT")) {
-                            System.out.println(incoming);
-                            String chat = incoming.substring(12).trim();
-                            String recipient = chat.substring(0, chat.indexOf(" ")).trim();
-                            String msg = chat.substring(chat.indexOf(" ") + 1).trim();
-                            msg = String.format("PCHAT %s %s", client.getUserName(), msg);
-                            broadcast(client.getUserName(), recipient, msg);
-                        } else if (header.equals("NUKE")) {
-                            String nukephrase = incoming.substring(10).trim();
+                        } else if (header == Message.HEADER_CLIENT_SEND_PM) {
+                            String recipient = incoming.getPayload().get(0);
+                            String msg = incoming.getPayload().get(1);
+
+                            ArrayList<String> payload = new ArrayList<String>();
+                            payload.add(client.getUserName());
+                            payload.add(msg);
+
+                            broadcast(recipient, new Message(Message.HEADER_SERVER_SEND_PM, payload));
+                        } else if (header == Message.HEADER_CLIENT_SEND_NUKE) {
+                            String nukephrase = incoming.getPayload().get(0);
                             nuke(client.getUserName(), nukephrase);
                         }
                     }
@@ -198,8 +211,10 @@ public class ChatServer {
                 synchronized (clientList) {
                     clientList.remove(client); 
                 }
-                System.out.println(client.getName() + " has left.");
-                broadcast(String.format("EXIT %s", client.getUserName()));
+                ArrayList<String> payload = new ArrayList<String>();
+                payload.add(client.getUserName());
+
+                broadcast(new Message(Message.HEADER_SERVER_SEND_LEAVE, payload));
                 try {
                     client.getSocket().close();
                 } catch (IOException ex) {}
@@ -214,31 +229,28 @@ public class ChatServer {
 
             synchronized(logs) {
                 for (int i = logs.size() - 1; i >= 0; i--) {
-                    System.out.println(i);
-
-                    System.out.println(logs.get(i).getMessage());
-                    System.out.println(System.currentTimeMillis() - logs.get(i).getTime());
-
-
                     if (System.currentTimeMillis() - logs.get(i).getTime() > 600000) 
                         break;
                     
                     Matcher matcher = pattern.matcher(logs.get(i).getMessage());
                     if (matcher.find()) {
                         victims.add(logs.get(i).getUser());
-                        System.out.println("victim " + logs.get(i).getUser());
                     }
                 }
             }
-            String msg = String.format("CHAT %s %s", "Bot", "Nuked " + victims.size() + " users for using nuked phrase \"" + nukeprhase + "\"");
-            broadcast(true, msg);
+            ArrayList<String> payload = new ArrayList<String>();
+            payload.add("Bot");
+            payload.add("Nuked " + victims.size() + " users for using nuked phrase \"" + nukeprhase + "\"");
+            broadcast(true, new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload));
 
             synchronized(clientList){
                 for (int i = clientList.size() - 1; i >=0; i--) {
                     for (int f = 0; f < victims.size(); f++) {
                         if (clientList.get(i).getUserName().equals(victims.get(f))) {
-                            String ban_msg = String.format("PCHAT %s %s", "Bot", "Kicked for nuked phrase: \"" + nukeprhase + "\"");
-                            broadcast("Bot", victims.get(f), ban_msg);
+                            ArrayList<String> payload_pm = new ArrayList<String>();
+                            payload_pm.add("Bot");
+                            payload_pm.add("Kicked for nuked phrase: \"" + nukeprhase + "\"");
+                            broadcast(victims.get(f), new Message(Message.HEADER_SERVER_SEND_PM, payload_pm));
                             try {
                                 clientList.get(i).getSocket().close();
                             } catch (Exception ex) {

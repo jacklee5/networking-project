@@ -1,15 +1,18 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
 import java.net.Socket;
 import java.util.Scanner;
+import java.util.ArrayList;
 
 public class ChatClient {
     private static Socket socket;
     private static BufferedReader socketIn;
-    private static PrintWriter out;
     private static boolean named;
     private static String name;
+    private static ObjectOutputStream out;
+    private static ObjectInputStream in;
     
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
@@ -24,7 +27,8 @@ public class ChatClient {
 
         socket = new Socket(serverip, port);
         socketIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out = new PrintWriter(socket.getOutputStream(), true);
+        out = new ObjectOutputStream(socket.getOutputStream());
+        in = new ObjectInputStream(socket.getInputStream());
 
         // start a thread to listen for server messages
         ServerListener listener = new ServerListener();
@@ -37,25 +41,53 @@ public class ChatClient {
 
         String line = userInput.nextLine().trim();
         while(!line.toLowerCase().startsWith("/quit")) {
-            String header;
+            int header;
+            ArrayList<String> arguments = new ArrayList<String>();
+            ArrayList<Integer> argument_indexes = new ArrayList<Integer>();
+            Message msg;
 
-            if (line.toLowerCase().startsWith("/pchat")) {
-                header = "PCHAT";
-            } else if (line.toLowerCase().startsWith("/nuke")) {
-                header = "NUKE";
-            } else {
-                header = "CHAT";
+            for (int i = 0; i < line.length(); i++) {
+                if (line.charAt(i) == ' ')
+                    argument_indexes.add(i);
             }
 
             if (!named) {
-                header = "NAME";
+                header = Message.HEADER_CLIENT_SEND_NAME;
+                
                 name = line;
+
+                arguments.add(line);
+            } else if (line.toLowerCase().startsWith("/pchat")) {
+                header = Message.HEADER_CLIENT_SEND_PM;
+
+                String recipient = line.substring(argument_indexes.get(0) + 1, argument_indexes.get(1));
+                String message = line.substring(argument_indexes.get(1) + 1);
+
+                arguments.add(recipient);
+                arguments.add(message);
+            } else if (line.toLowerCase().startsWith("/nuke")) {
+                header = Message.HEADER_CLIENT_SEND_NUKE;
+
+                String nukephrase = line.substring(argument_indexes.get(0) + 1);
+                
+                arguments.add(nukephrase);
+            } else {
+                header = Message.HEADER_CLIENT_SEND_MESSAGE;
+
+                String message = line;
+                
+                arguments.add(message);
             }
-            String msg = String.format("%s %s", header, line); 
-            out.println(msg);
+
+            msg = new Message(header, arguments);
+            
+            // for (int i = 0; i < msg.getPayload().size(); i++)
+            //     System.out.println(msg.getPayload().get(i));
+
+            out.writeObject(msg);
             line = userInput.nextLine().trim();
         }
-        out.println("QUIT");
+        out.writeObject(new Message(Message.HEADER_CLIENT_SEND_LOGOUT, null));;
         out.close();
         userInput.close();
         socketIn.close();
@@ -68,38 +100,41 @@ public class ChatClient {
         @Override
         public void run() {
             try {
-                String incoming = "";
+                Message incoming;
 
-                while( (incoming = socketIn.readLine()) != null) {
+                while( (incoming = (Message)in.readObject()) != null) {
                     //handle different headers
-                    String[] message = incoming.split(" ");
-                    String header = message[0];
+                    int header = incoming.getHeader();
+                    ArrayList<String> arguments = incoming.getPayload();
+                    
                     //SUBMITNAME
-                    if (header.equals("SUBMITNAME")) {
+                    if (header == Message.HEADER_SERVER_REQ_NAME) {
                         System.out.print("Enter your username: ");
                     }
                     //WELCOME
-                    else if (header.equals("WELCOME")) {
-                        String newName = message[1];
+                    else if (header == Message.HEADER_SERVER_SEND_WELCOME) {
+                        String newName = arguments.get(0);
                         if (!named && newName.equals(name)) {
                             named = true;
+                            System.out.println("L_?");
                         }
                         System.out.println(newName + " has joined");
                     }
                     //CHAT
-                    else if (header.equals("CHAT")) {
-                        String username = message[1];
-                        String msg = incoming.substring(5 + username.length()).trim();
+                    else if (header == Message.HEADER_SERVER_SEND_MESSAGE) {
+                        String username = arguments.get(0);
+                        String msg = arguments.get(1);
                         System.out.println(username + ": "  + msg);
                     }
-                    else if (header.equals("PCHAT")) {
-                        String username = message[1];
-                        String msg = incoming.substring(6 + username.length()).trim();
+                    //PM
+                    else if (header == Message.HEADER_SERVER_SEND_PM) {
+                        String username = arguments.get(0);
+                        String msg = arguments.get(1);
                         System.out.printf("%s whispers to you: %s\n", username, msg);
                     }
                     //EXIT
-                    else if (header.equals("EXIT")) {
-                        String username = message[1];
+                    else if (header == Message.HEADER_SERVER_SEND_LEAVE) {
+                        String username = arguments.get(0);
                         System.out.println(username + " has left.");
                     }
                 }
