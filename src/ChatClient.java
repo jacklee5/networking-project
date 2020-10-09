@@ -19,12 +19,12 @@ public class ChatClient {
         Scanner userInput = new Scanner(System.in);
         
         System.out.println("What's the server IP? ");
-        // String serverip = userInput.nextLine();
+        String serverip = userInput.nextLine();
         System.out.println("What's the server port? ");
-        // int port = userInput.nextInt();
+        int port = userInput.nextInt();
 
-        String serverip = "127.0.0.1";
-        int port = 54321;
+        // String serverip = "127.0.0.1";
+        // int port = 54321;
 
         userInput.nextLine();
 
