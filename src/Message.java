@@ -13,6 +13,7 @@ public class Message implements Serializable {
     public static final int HEADER_SERVER_SEND_WELCOME = 8;
     public static final int HEADER_SERVER_SEND_PM = 9;
     public static final int HEADER_SERVER_SEND_LEAVE = 10;
+    public static final int HEADER_SERVER_SEND_ONLINE = 11;
 
     public static final long serialVersionUID = 1L;
 

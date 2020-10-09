@@ -37,10 +37,9 @@ public class ClientHandler implements Runnable {
             System.out.println("broadcast caught exception: " + ex);
             ex.printStackTrace();
         }
-        
     }
 
-    public void broadcast(boolean always_send, Message msg) {
+    public void broadcast(Message msg, boolean always_send) {
         try {
             System.out.println("Broadcasting -- " + msg);
 
@@ -50,15 +49,33 @@ public class ClientHandler implements Runnable {
                     c.getOut().writeObject(msg);
                 }
             }
-
         } catch (Exception ex) {
             System.out.println("broadcast caught exception: " + ex);
             ex.printStackTrace();
         }
-        
     }
 
-    public void broadcast(String recipient, Message msg) {
+    public void broadcast(Message msg, ArrayList<String> recipient) {
+        try {
+            System.out.println("Broadcasting -- " + msg);
+
+            synchronized (clientList) {
+                for (ClientConnectionData c : clientList){
+                    System.out.println(c.getUserName());
+                    for (int i = 0; i < recipient.size(); i++) {
+                        if (c.getUserName().equals(recipient.get(i))) {
+                            c.getOut().writeObject(msg);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.out.println("broadcast caught exception: " + ex);
+            ex.printStackTrace();
+        }
+    }
+
+    public void broadcast(Message msg, String recipient) {
         try {
             System.out.println("Broadcasting -- " + msg);
 
@@ -75,10 +92,20 @@ public class ClientHandler implements Runnable {
             ex.printStackTrace();
         }
     }
+
+    public void broadcastOnline() {
+        ArrayList<String> online = new ArrayList<String>();
+        for (int i = 0; i < clientList.size(); i++) {
+            online.add(clientList.get(i).getUserName());
+        }
+
+        broadcast(new Message(Message.HEADER_SERVER_SEND_ONLINE, online));
+    }
         
     public boolean nameIsValid(String name) {
         if (name.contains(" ") || !name.matches("^[a-zA-Z0-9]*$")) 
             return false;
+
         synchronized (clientList) {
             for (ClientConnectionData c : clientList) {
                 if (c.getUserName().equals(name))
@@ -103,11 +130,13 @@ public class ClientHandler implements Runnable {
             out.writeObject(new Message(Message.HEADER_SERVER_REQ_NAME, null));
 
             Message incoming;
+
             while( (incoming = (Message)in.readObject()) != null) {
                 System.out.println("Incoming Packet -- ");
                 System.out.println(incoming);
 
                 int header = incoming.getHeader();
+
                 if (header == Message.HEADER_CLIENT_SEND_LOGOUT) {
                     break;
                 } else if (client.getUserName() == null) {
@@ -119,10 +148,13 @@ public class ClientHandler implements Runnable {
                             synchronized (clientList) {
                                 clientList.add(client);
                             }
+
                             System.out.println("added client " + name);
 
                             ArrayList<String> payload = new ArrayList<String>();
                             payload.add(name);
+
+                            broadcastOnline();
                             broadcast(new Message(Message.HEADER_SERVER_SEND_WELCOME, payload));
                         } else {
                             out.writeObject(new Message(Message.HEADER_SERVER_REQ_NAME, null));
@@ -133,6 +165,7 @@ public class ClientHandler implements Runnable {
                 } else {
                     if (header == Message.HEADER_CLIENT_SEND_MESSAGE) {
                         String chat = incoming.getPayload().get(0);
+
                         if (chat.length() > 0) {
                             synchronized(logs) {
                                 logs.add(new Log(client.getUserName(), chat, System.currentTimeMillis()));
@@ -141,19 +174,25 @@ public class ClientHandler implements Runnable {
                             ArrayList<String> payload = new ArrayList<String>();
                             payload.add(client.getUserName());
                             payload.add(chat);
+
                             broadcast(new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload));    
                         }
                     } else if (header == Message.HEADER_CLIENT_SEND_PM) {
-                        String recipient = incoming.getPayload().get(0);
-                        String msg = incoming.getPayload().get(1);
-
+                        ArrayList<String> recipient = new ArrayList<String>();
                         ArrayList<String> payload = new ArrayList<String>();
+
+                        String msg = incoming.getPayload().get(incoming.getPayload().size() - 1);
+
                         payload.add(client.getUserName());
                         payload.add(msg);
 
-                        broadcast(recipient, new Message(Message.HEADER_SERVER_SEND_PM, payload));
+                        for (int i = 0; i < incoming.getPayload().size() - 1; i++)
+                            recipient.add(incoming.getPayload().get(i));
+
+                        broadcast(new Message(Message.HEADER_SERVER_SEND_PM, payload), recipient);
                     } else if (header == Message.HEADER_CLIENT_SEND_NUKE) {
                         String nukephrase = incoming.getPayload().get(0);
+
                         nuke(client.getUserName(), nukephrase);
                     }
                 }
@@ -171,9 +210,11 @@ public class ClientHandler implements Runnable {
             synchronized (clientList) {
                 clientList.remove(client); 
             }
+
             ArrayList<String> payload = new ArrayList<String>();
             payload.add(client.getUserName());
 
+            broadcastOnline();
             broadcast(new Message(Message.HEADER_SERVER_SEND_LEAVE, payload));
             try {
                 client.getSocket().close();
@@ -193,6 +234,7 @@ public class ClientHandler implements Runnable {
                     break;
                 
                 Matcher matcher = pattern.matcher(logs.get(i).getMessage());
+
                 if (matcher.find()) {
                     victims.add(logs.get(i).getUser());
                 }
@@ -201,7 +243,7 @@ public class ClientHandler implements Runnable {
         ArrayList<String> payload = new ArrayList<String>();
         payload.add("Bot");
         payload.add("Nuked " + victims.size() + " users for using nuked phrase \"" + nukeprhase + "\"");
-        broadcast(true, new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload));
+        broadcast(new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload), true);
 
         synchronized(clientList){
             for (int i = clientList.size() - 1; i >=0; i--) {
@@ -210,12 +252,13 @@ public class ClientHandler implements Runnable {
                         ArrayList<String> payload_pm = new ArrayList<String>();
                         payload_pm.add("Bot");
                         payload_pm.add("Kicked for nuked phrase: \"" + nukeprhase + "\"");
-                        broadcast(victims.get(f), new Message(Message.HEADER_SERVER_SEND_PM, payload_pm));
+
+                        broadcast(new Message(Message.HEADER_SERVER_SEND_PM, payload_pm), victims.get(f));
+
                         try {
                             clientList.get(i).getSocket().close();
-                        } catch (Exception ex) {
+                        } catch (Exception ex) {}
 
-                        }
                         clientList.remove(i);
                         break;
                     }

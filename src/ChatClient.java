@@ -13,16 +13,19 @@ public class ChatClient {
     private static String name;
     private static ObjectOutputStream out;
     private static ObjectInputStream in;
+    private static ArrayList<String> online;
     
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
         
         System.out.println("What's the server IP? ");
-        String serverip = userInput.nextLine();
-        // String serverip = "127.0.0.1";
+        // String serverip = userInput.nextLine();
         System.out.println("What's the server port? ");
-        int port = userInput.nextInt();
-        // int port = 54321;
+        // int port = userInput.nextInt();
+
+        String serverip = "127.0.0.1";
+        int port = 54321;
+
         userInput.nextLine();
 
         socket = new Socket(serverip, port);
@@ -31,7 +34,7 @@ public class ChatClient {
         in = new ObjectInputStream(socket.getInputStream());
 
         // start a thread to listen for server messages
-        ServerListener listener = new ServerListener(in, named, name);
+        ServerListener listener = new ServerListener(in, named, name, online);
         Thread t = new Thread(listener);
         t.start();
 
@@ -40,10 +43,11 @@ public class ChatClient {
         // out.println(name); //out.flush();
 
         String line = userInput.nextLine().trim();
+
         while(!line.toLowerCase().startsWith("/quit")) {
-            int header;
             ArrayList<String> arguments = new ArrayList<String>();
             ArrayList<Integer> argument_indexes = new ArrayList<Integer>();
+            int header;
             Message msg;
 
             for (int i = 0; i < line.length(); i++) {
@@ -52,38 +56,42 @@ public class ChatClient {
             }
 
             if (!listener.getNamed()) {
-                header = Message.HEADER_CLIENT_SEND_NAME;
-                
                 listener.setName(line);
 
+                header = Message.HEADER_CLIENT_SEND_NAME;
                 arguments.add(line);
             } else if (line.toLowerCase().startsWith("/pchat")) {
+                int i;
+                String[] words = line.split(" ");
+
+                for (i = 1; i < words.length; i++) {
+                    if (words[i].charAt(0) == '@') 
+                        arguments.add(words[i].strip().substring(1));
+                    else
+                        break;
+                }
+                
+                String message = line.substring(argument_indexes.get(i - 1) + 1);
+
                 header = Message.HEADER_CLIENT_SEND_PM;
-
-                String recipient = line.substring(argument_indexes.get(0) + 1, argument_indexes.get(1));
-                String message = line.substring(argument_indexes.get(1) + 1);
-
-                arguments.add(recipient);
                 arguments.add(message);
             } else if (line.toLowerCase().startsWith("/nuke")) {
-                header = Message.HEADER_CLIENT_SEND_NUKE;
-
                 String nukephrase = line.substring(argument_indexes.get(0) + 1);
-                
+
+                header = Message.HEADER_CLIENT_SEND_NUKE;
                 arguments.add(nukephrase);
             } else {
-                header = Message.HEADER_CLIENT_SEND_MESSAGE;
-
                 String message = line;
-                
+
+                header = Message.HEADER_CLIENT_SEND_MESSAGE;
                 arguments.add(message);
             }
 
             msg = new Message(header, arguments);
-
             out.writeObject(msg);
             line = userInput.nextLine().trim();
         }
+
         out.writeObject(new Message(Message.HEADER_CLIENT_SEND_LOGOUT, null));;
         out.close();
         userInput.close();

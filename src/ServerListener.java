@@ -6,11 +6,13 @@ public class ServerListener implements Runnable {
     private boolean named;
     private String name;
     private ObjectInputStream in;
+    private ArrayList<String> online;
 
-    public ServerListener (ObjectInputStream in, boolean named, String name) {
+    public ServerListener (ObjectInputStream in, boolean named, String name, ArrayList<String> online) {
         this.in = in;
         this.named = named;
         this.name = name;
+        this.online = online;
     }
 
     public boolean getNamed() {
@@ -37,6 +39,14 @@ public class ServerListener implements Runnable {
         this.in = in;
     }
 
+    public ArrayList<String> getOnline() {
+        return online;
+    }
+
+    public void setOnline(ArrayList<String> online) {
+        this.online = online;
+    }
+
     @Override
     public void run() {
         try {
@@ -45,7 +55,7 @@ public class ServerListener implements Runnable {
             while( (incoming = (Message)in.readObject()) != null) {
                 //handle different headers
                 int header = incoming.getHeader();
-                ArrayList<String> arguments = incoming.getPayload();
+                ArrayList<String> payload = incoming.getPayload();
                 
                 //SUBMITNAME
                 if (header == Message.HEADER_SERVER_REQ_NAME) {
@@ -53,7 +63,7 @@ public class ServerListener implements Runnable {
                 }
                 //WELCOME
                 else if (header == Message.HEADER_SERVER_SEND_WELCOME) {
-                    String newName = arguments.get(0);
+                    String newName = payload.get(0);
                     if (!named && newName.equals(name)) {
                         named = true;
                     }
@@ -61,20 +71,24 @@ public class ServerListener implements Runnable {
                 }
                 //CHAT
                 else if (header == Message.HEADER_SERVER_SEND_MESSAGE) {
-                    String username = arguments.get(0);
-                    String msg = arguments.get(1);
+                    String username = payload.get(0);
+                    String msg = payload.get(1);
                     System.out.println(username + ": "  + msg);
                 }
                 //PM
                 else if (header == Message.HEADER_SERVER_SEND_PM) {
-                    String username = arguments.get(0);
-                    String msg = arguments.get(1);
+                    String username = payload.get(0);
+                    String msg = payload.get(1);
                     System.out.printf("%s whispers to you: %s\n", username, msg);
                 }
                 //EXIT
                 else if (header == Message.HEADER_SERVER_SEND_LEAVE) {
-                    String username = arguments.get(0);
+                    String username = payload.get(0);
                     System.out.println(username + " has left.");
+                }
+                //ONLINE
+                else if (header == Message.HEADER_SERVER_SEND_ONLINE) {
+                    online = payload;
                 }
             }
         } catch (Exception ex) {
