@@ -31,7 +31,7 @@ public class ChatClient {
         in = new ObjectInputStream(socket.getInputStream());
 
         // start a thread to listen for server messages
-        ServerListener listener = new ServerListener();
+        ServerListener listener = new ServerListener(in, named, name);
         Thread t = new Thread(listener);
         t.start();
 
@@ -51,10 +51,10 @@ public class ChatClient {
                     argument_indexes.add(i);
             }
 
-            if (!named) {
+            if (!listener.getNamed()) {
                 header = Message.HEADER_CLIENT_SEND_NAME;
                 
-                name = line;
+                listener.setName(line);
 
                 arguments.add(line);
             } else if (line.toLowerCase().startsWith("/pchat")) {
@@ -90,55 +90,5 @@ public class ChatClient {
         socketIn.close();
         socket.close();
         
-    }
-
-    static class ServerListener implements Runnable {
-
-        @Override
-        public void run() {
-            try {
-                Message incoming;
-
-                while( (incoming = (Message)in.readObject()) != null) {
-                    //handle different headers
-                    int header = incoming.getHeader();
-                    ArrayList<String> arguments = incoming.getPayload();
-                    
-                    //SUBMITNAME
-                    if (header == Message.HEADER_SERVER_REQ_NAME) {
-                        System.out.print("Enter your username: ");
-                    }
-                    //WELCOME
-                    else if (header == Message.HEADER_SERVER_SEND_WELCOME) {
-                        String newName = arguments.get(0);
-                        if (!named && newName.equals(name)) {
-                            named = true;
-                        }
-                        System.out.println(newName + " has joined");
-                    }
-                    //CHAT
-                    else if (header == Message.HEADER_SERVER_SEND_MESSAGE) {
-                        String username = arguments.get(0);
-                        String msg = arguments.get(1);
-                        System.out.println(username + ": "  + msg);
-                    }
-                    //PM
-                    else if (header == Message.HEADER_SERVER_SEND_PM) {
-                        String username = arguments.get(0);
-                        String msg = arguments.get(1);
-                        System.out.printf("%s whispers to you: %s\n", username, msg);
-                    }
-                    //EXIT
-                    else if (header == Message.HEADER_SERVER_SEND_LEAVE) {
-                        String username = arguments.get(0);
-                        System.out.println(username + " has left.");
-                    }
-                }
-            } catch (Exception ex) {
-                System.out.println("Exception caught in listener - " + ex);
-            } finally{
-                System.out.println("Client Listener exiting");
-            }
-        }
     }
 }
