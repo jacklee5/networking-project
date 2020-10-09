@@ -73,7 +73,8 @@ public class ServerListener implements Runnable {
                 else if (header == Message.HEADER_SERVER_SEND_MESSAGE) {
                     String username = payload.get(0);
                     String msg = payload.get(1);
-                    System.out.println(username + ": "  + msg);
+                    if (!this.name.equals(username))
+                        System.out.println(username + ": "  + msg);
                 }
                 //PM
                 else if (header == Message.HEADER_SERVER_SEND_PM) {

@@ -48,7 +48,6 @@ public class ChatClient {
             ArrayList<String> arguments = new ArrayList<String>();
             ArrayList<Integer> argument_indexes = new ArrayList<Integer>();
             int header = -1;
-            Message msg;
 
             for (int i = 0; i < line.length(); i++) {
                 if (line.charAt(i) == ' ')

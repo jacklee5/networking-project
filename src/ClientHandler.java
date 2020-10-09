@@ -28,25 +28,8 @@ public class ClientHandler implements Runnable {
             synchronized (clientList) {
                 for (ClientConnectionData c : clientList){
                     System.out.println(c.getUserName());
-                    if (c.getUserName() != client.getUserName() || !(msg.getHeader() == Message.HEADER_SERVER_SEND_MESSAGE))
-                        c.getOut().writeObject(msg);
-                    // c.getOut().flush();
-                }
-            }
-        } catch (Exception ex) {
-            System.out.println("broadcast caught exception: " + ex);
-            ex.printStackTrace();
-        }
-    }
-
-    public void broadcast(Message msg, boolean always_send) {
-        try {
-            System.out.println("Broadcasting -- " + msg);
-
-            synchronized (clientList) {
-                for (ClientConnectionData c : clientList){
-                System.out.println(c.getUserName());
                     c.getOut().writeObject(msg);
+                    // c.getOut().flush();
                 }
             }
         } catch (Exception ex) {
@@ -243,7 +226,7 @@ public class ClientHandler implements Runnable {
         ArrayList<String> payload = new ArrayList<String>();
         payload.add("Bot");
         payload.add("Nuked " + victims.size() + " users for using nuked phrase \"" + nukeprhase + "\"");
-        broadcast(new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload), true);
+        broadcast(new Message(Message.HEADER_SERVER_SEND_MESSAGE, payload));
 
         synchronized(clientList){
             for (int i = clientList.size() - 1; i >=0; i--) {
