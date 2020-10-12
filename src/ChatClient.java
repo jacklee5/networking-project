@@ -14,10 +14,10 @@ public class ChatClient {
     private static ObjectOutputStream out;
     private static ObjectInputStream in;
     private static ArrayList<String> online;
-    
+
     public static void main(String[] args) throws Exception {
         Scanner userInput = new Scanner(System.in);
-        
+
         System.out.println("What's the server IP? ");
         String serverip = userInput.nextLine();
         System.out.println("What's the server port? ");
@@ -69,7 +69,7 @@ public class ChatClient {
                     else
                         break;
                 }
-                
+
                 String message = line.substring(argument_indexes.get(i - 1) + 1);
 
                 header = Message.HEADER_CLIENT_SEND_PM;

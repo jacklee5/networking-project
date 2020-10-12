@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.io.ObjectInputStream;
 
 public class ServerListener implements Runnable {
-    
+
     private boolean named;
     private String name;
     private ObjectInputStream in;
@@ -56,7 +56,7 @@ public class ServerListener implements Runnable {
                 //handle different headers
                 int header = incoming.getHeader();
                 ArrayList<String> payload = incoming.getPayload();
-                
+
                 //SUBMITNAME
                 if (header == Message.HEADER_SERVER_REQ_NAME) {
                     System.out.print("Enter your username: ");

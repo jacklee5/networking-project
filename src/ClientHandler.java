@@ -84,7 +84,7 @@ public class ClientHandler implements Runnable {
 
         broadcast(new Message(Message.HEADER_SERVER_SEND_ONLINE, online));
     }
-        
+
     public boolean nameIsValid(String name) {
         if (name.contains(" ") || !name.matches("^[a-zA-Z0-9]*$")) 
             return false;
@@ -153,7 +153,7 @@ public class ClientHandler implements Runnable {
                             synchronized(logs) {
                                 logs.add(new Log(client.getUserName(), chat, System.currentTimeMillis()));
                             }
-                            
+
                             ArrayList<String> payload = new ArrayList<String>();
                             payload.add(client.getUserName());
                             payload.add(chat);

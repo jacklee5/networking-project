@@ -22,13 +22,13 @@ public class ChatServer {
             System.out.println("Local IP: "
                     + Inet4Address.getLocalHost().getHostAddress());
             System.out.println("Local Port: " + serverSocket.getLocalPort());
-        
+
             while (true) {
                 try {
                     Socket socket = serverSocket.accept();
                     System.out.printf("Connected to %s:%d on local port %d\n",
                         socket.getInetAddress(), socket.getPort(), socket.getLocalPort());
-                    
+
                     // This code should really be done in the separate thread
                     ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                     ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
@@ -41,10 +41,7 @@ public class ChatServer {
                 } catch (IOException ex) {
                     System.out.println(ex.getMessage());
                 }
-
             }
         } 
     }
-
-    // Inner class 
 }
