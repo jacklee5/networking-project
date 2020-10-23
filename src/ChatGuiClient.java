@@ -1,9 +1,9 @@
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,17 +13,19 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 /**
  * For Java 8, javafx is installed with the JRE. You can run this program normally.
@@ -64,13 +66,14 @@ class ServerInfo {
 
 public class ChatGuiClient extends Application {
     private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
     
     private Stage stage;
     private TextArea messageArea;
     private TextField textInput;
     private Button sendButton;
+    private ListView usersList;
 
     private ServerInfo serverInfo;
     //volatile keyword makes individual reads/writes of the variable atomic
@@ -107,6 +110,17 @@ public class ChatGuiClient extends Application {
         messageArea.setEditable(false);
         borderPane.setCenter(messageArea);
 
+        // right panel
+        usersList = new ListView();
+        usersList.setPrefWidth(100);
+        Button nukeButton = new Button("Nuke");
+        nukeButton.setStyle("-fx-background-color: #ff0000; ");
+        nukeButton.setOnAction(e -> nukeChat());
+        VBox vbox = new VBox();
+        vbox.getChildren().addAll(new Label("Users in chat:"), usersList, new Label("Danger zone"), nukeButton);
+        borderPane.setRight(vbox);
+
+
         //At first, can't send messages - wait for WELCOME!
         textInput = new TextField();
         textInput.setEditable(false);
@@ -129,7 +143,10 @@ public class ChatGuiClient extends Application {
         
         //Handle GUI closed event
         stage.setOnCloseRequest(e -> {
-            out.println("QUIT");
+            try {
+                out.writeObject(new Message(Message.HEADER_CLIENT_SEND_LOGOUT, null));
+                out.close();
+            } catch (IOException ex) {}
             socketListener.appRunning = false;
             try {
                 socket.close(); 
@@ -139,12 +156,62 @@ public class ChatGuiClient extends Application {
         new Thread(socketListener).start();
     }
 
+    private void nukeChat() {
+        String wordToNuke = showNukePopup();
+        ArrayList<String> payload = new ArrayList<>();
+        payload.add(wordToNuke);
+        try {
+            out.writeObject(new Message(Message.HEADER_CLIENT_SEND_NUKE, payload));
+        } catch (Exception e) {
+            System.out.println("Failed to send a message");
+        }
+    }
+
+    private String showNukePopup() {
+        TextInputDialog nameDialog = new TextInputDialog();
+        nameDialog.setTitle("Nuke");
+        nameDialog.setHeaderText("Select a phrase to nuke");
+        
+        String word = "";
+        while (word.equals("")) {
+            Optional<String> name = nameDialog.showAndWait();
+            if (!name.isPresent() || name.get().trim().equals(""))
+                nameDialog.setHeaderText("You must enter a nonempty word: ");
+            word = name.get().trim(); 
+        }
+
+        return word;
+    }
+
     private void sendMessage() {
         String message = textInput.getText().trim();
         if (message.length() == 0)
             return;
         textInput.clear();
-        out.println("CHAT " + message);
+
+        ArrayList<String> mentionedUsers = new ArrayList<>();
+        String[] words = message.split(" ");
+        for (int i = 0; i < words.length; i++ ){
+            if (words[i].charAt(0) == '@') {
+                mentionedUsers.add(words[i].substring(1));
+            }
+        }
+
+        Message output = null;
+        if (mentionedUsers.size() == 0) {
+            ArrayList<String> payload = new ArrayList<>();
+            payload.add(message);
+            output = new Message(Message.HEADER_CLIENT_SEND_MESSAGE, payload);
+        } else {
+            mentionedUsers.add(message);
+            output = new Message(Message.HEADER_CLIENT_SEND_PM, mentionedUsers);
+        }
+        try {
+            out.writeObject(output);
+        } catch (IOException ex) {
+            System.out.println("Failed to send a message");
+        }
+        
     }
 
     private Optional<ServerInfo> getServerIpAndPort() {
@@ -213,9 +280,13 @@ public class ChatGuiClient extends Application {
     }
 
     private String getName(){
+        return getName("Please enter your username.");
+    }
+
+    private String getName(String message) {
         TextInputDialog nameDialog = new TextInputDialog();
         nameDialog.setTitle("Enter Chat Name");
-        nameDialog.setHeaderText("Please enter your username.");
+        nameDialog.setHeaderText(message);
         nameDialog.setContentText("Name: ");
         
         while(username.equals("")) {
@@ -238,21 +309,33 @@ public class ChatGuiClient extends Application {
             try {
                 // Set up the socket for the Gui
                 socket = new Socket(serverInfo.serverAddress, serverInfo.serverPort);
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                out = new PrintWriter(socket.getOutputStream(), true);
+                out = new ObjectOutputStream(socket.getOutputStream());
+                in = new ObjectInputStream(socket.getInputStream());
                 
                 appRunning = true;
-                //Ask the gui to show the username dialog and update username
-                //Send to the server
-                Platform.runLater(() -> {
-                    out.println(getName());
-                });
 
                 //handle all kinds of incoming messages
-                String incoming = "";
-                while (appRunning && (incoming = in.readLine()) != null) {
-                    if (incoming.startsWith("WELCOME")) {
-                        String user = incoming.substring(8);
+                Message incoming = null;
+                while (appRunning && (incoming = (Message)in.readObject()) != null) {
+                    System.out.println(incoming);
+                    int header = incoming.getHeader();
+                    if (header == Message.HEADER_SERVER_REQ_NAME) {
+                        Platform.runLater(() -> {
+                            ArrayList<String> payload = new ArrayList<>();
+                            if (username.equals("")) {
+                                payload.add(getName());
+                            } else {
+                                username = "";
+                                payload.add(getName("The name you entered is taken, try another."));
+                            }   
+                            try {
+                                out.writeObject(new Message(Message.HEADER_CLIENT_SEND_NAME, payload));
+                            } catch (Exception ex) { 
+                                System.out.println("A message failed to send");
+                            }
+                        });
+                    } else if (header == Message.HEADER_SERVER_SEND_WELCOME) {
+                        String user = incoming.getPayload().get(0);
                         //got welcomed? Now you can send messages!
                         if (user.equals(username)) {
                             Platform.runLater(() -> {
@@ -268,19 +351,28 @@ public class ChatGuiClient extends Application {
                             });
                         }
                             
-                    } else if (incoming.startsWith("CHAT")) {
-                        int split = incoming.indexOf(" ", 5);
-                        String user = incoming.substring(5, split);
-                        String msg = incoming.substring(split + 1);
+                    } else if (header == Message.HEADER_SERVER_SEND_MESSAGE) {
+                        String user = incoming.getPayload().get(0);
+                        String msg = incoming.getPayload().get(1);
 
                         Platform.runLater(() -> {
                             messageArea.appendText(user + ": " + msg + "\n");
                         });
-                    } else if (incoming.startsWith("EXIT")) { 
-                        String user = incoming.substring(5);
+                    } else if (header == Message.HEADER_SERVER_SEND_PM) {
+                        String user = incoming.getPayload().get(0);
+                        String msg = incoming.getPayload().get(incoming.getPayload().size() - 1);
+
                         Platform.runLater(() -> {
-                            messageArea.appendText(user + "has left the chatroom.\n");
+                            messageArea.appendText(user + "(privately): " + msg + "\n");
                         });
+                    } else if (header == Message.HEADER_SERVER_SEND_LEAVE) { 
+                        String user = incoming.getPayload().get(0);
+                        Platform.runLater(() -> {
+                            messageArea.appendText(user + " has left the chatroom.\n");
+                        });
+                    } else if (header == Message.HEADER_SERVER_SEND_ONLINE) {
+                        usersList.getItems().clear();
+                        usersList.getItems().addAll(incoming.getPayload());
                     }
                 }
             } catch (UnknownHostException e) {

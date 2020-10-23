@@ -7,13 +7,19 @@ After a user specifies a username and joins the room, they will be greated with 
 ### Chat
 When the user types something in chat, it will be sent to all the other users in the room
 ### Quit command
-The user can quit the room by typing /quit and all other users will be notified with "[name] has left"
+#### Console Client
+The user can quit the room by typing /quit and all other users will be notified with "[name] has left". 
+#### GUI Client
+The user can quit the room by closing the window and all other users will be notified with "[name] has left]".
 ### Message command
 The user can message a specific user by typing /pchat [usernames] [message]
 You can type a list of usernames separated by spaces. Each username should have the @ symbol before it
 ### Nuke command
+#### Console Client
 The user can nuke a phrase by typing /nuke [nukephrase]
 This kicks all users with messages that match the regex [nukephrase] in the last 10 minutes
+#### GUI Client
+The user can nuke a phrase by clicking the nuke button and selecting a non-empty phrase.
 
 ### HEADER_CLIENT_SEND_NAME
 [name]

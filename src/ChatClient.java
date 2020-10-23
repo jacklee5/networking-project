@@ -96,7 +96,7 @@ public class ChatClient {
             line = userInput.nextLine().trim();
         }
 
-        out.writeObject(new Message(Message.HEADER_CLIENT_SEND_LOGOUT, null));;
+        out.writeObject(new Message(Message.HEADER_CLIENT_SEND_LOGOUT, null));
         out.close();
         userInput.close();
         socketIn.close();

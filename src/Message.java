@@ -35,9 +35,9 @@ public class Message implements Serializable {
 
     public String toString() {
         String ret = header + ":\n";
-        for (int i = 0; i < payload.size(); i++) {
-            ret += payload.get(i) + "\n";
-        }
+        if (payload != null)
+            for (int i = 0; i < payload.size(); i++)
+                ret += payload.get(i) + "\n";
 
         return ret;
     }
