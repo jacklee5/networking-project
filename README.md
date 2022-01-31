@@ -1,4 +1,5 @@
 # Better Basic Chat App
+Chat Client built on Java for school project
 ## Features
 ### Custom usernames
 On started the client, after specifying the connection information, the user will be asked for a username. This username must be alphanumeric, contain no spaces, and not already be in use. If these conditions are met, the server will ask for another username
